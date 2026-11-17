@@ -3,7 +3,7 @@
 Détection d'événements d'épissage aberrants à partir de RNA-seq (BAM), dans
 l'esprit de FRASER / FRASER 2.0 (psi5, psi3, theta, Intron Jaccard Index).
 L'outil vise de gros runs (70 à 80 échantillons, plusieurs centaines de Go de
-BAM) sur une machine modeste, sans droits administrateur, sous Linux ou Windows.
+BAM), cumulable en grosse cohorte (plusieurs centaines d'échantillons) sur une machine modeste, sans droits administrateur, sous Linux ou Windows.
 
 Documentation complète : **[README_FR.md](README_FR.md)**. Installation sous
 Windows : [windows/INSTALL_WINDOWS.md](windows/INSTALL_WINDOWS.md). Nouveautés :
