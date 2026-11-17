@@ -1,0 +1,7 @@
+splicefast/bin/sfscan
+third_party/
+__pycache__/
+*.pyc
+dist/
+# fichiers locaux contenant de vrais identifiants d echantillons
+*.local.tsv
