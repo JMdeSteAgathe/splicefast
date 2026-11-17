@@ -407,7 +407,14 @@ def merge_metrics(hits: List[dict]) -> List[dict]:
     return out
 
 
-COLUMNS = [
+# PanelApp (panels, mode de transmission) en tete : c'est ce qu'on lit en
+# premier pour trier les anomalies ; les phenotypes, longs, restent a droite
+PANEL_COLUMNS = [
+    ("panels", "panels"), ("panels_green", "panels_green"),
+    ("panel_confidence", "panelapp_best_confidence"), ("moi", "moi"),
+]
+
+COLUMNS = PANEL_COLUMNS + [
     ("sample", "sample"), ("run", "run"), ("reference", "in_reference"),
     ("gene", "gene"), ("gene_id", "gene_id"), ("strand", "strand"),
     ("coordinates", "coordinates"), ("chrom", "chrom"), ("start", "start"),
@@ -432,8 +439,6 @@ COLUMNS = [
     ("known_intron", "intron_annotated"), ("canonical", "ensembl_canonical"),
     ("dist_annot", "dist_to_annotated_site"),
     ("site_type", "site_type"), ("n_samples_couverts", "n_ref_samples_covered"),
-    ("panels", "panels"), ("panels_green", "panels_green"),
-    ("panel_confidence", "panelapp_best_confidence"), ("moi", "moi"),
     ("phenotypes", "phenotypes"),
 ]
 # colonnes JSON : seulement dans les TSV par echantillon (visualiseur)
@@ -442,7 +447,7 @@ JSON_COLUMNS = [("panel_details", "panel_details"),
                 ("cohort_hist", "cohort_hist"), ("context", "context")]
 
 
-ANOM_COLUMNS = [
+ANOM_COLUMNS = PANEL_COLUMNS + [
     ("sample", "sample"), ("run", "run"), ("gene", "gene"),
     ("coordinates", "coordinates"), ("anomalie", "anomaly_id"),
     ("type", "anomaly_type"), ("p_anomalie", "anomaly_p"),
@@ -453,9 +458,7 @@ ANOM_COLUMNS = [
     ("meilleure_ligne", "best_row"), ("retenu_par", "selected_by"),
     ("n_carriers", "n_carriers"), ("recurrent", "recurrent"),
     ("hypervariable_locus", "hypervariable_locus"),
-    ("panels", "panels"), ("panels_green", "panels_green"),
-    ("panel_confidence", "panelapp_best_confidence"), ("moi", "moi"),
-    ("phenotypes", "phenotypes"), ("reference", "in_reference"),
+    ("reference", "in_reference"), ("phenotypes", "phenotypes"),
 ]
 
 

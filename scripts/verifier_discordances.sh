@@ -2,23 +2,29 @@
 # Verifie, dans un dossier de resultats SpliceFast, les evenements de reference
 # (vus par FRASER2) qui manquaient ou etaient mal classes en 2.3.
 #
-#   scripts/verifier_discordances.sh /data/splicefast
+#   scripts/verifier_discordances.sh /data/splicefast [CAS.tsv]
+#
+# CAS.tsv : une ligne par cas, 4 colonnes separees par des tabulations :
+#   prefixe_echantillon  gene  debut  fin      (1-based, comme FRASER)
+# Par defaut : scripts/discordances.local.tsv. Ce fichier contient de vrais
+# identifiants d'echantillons : il n'est PAS versionne (.gitignore). Modele :
+# scripts/discordances.exemple.tsv.
 #
 # Pour chaque cas : la ligne la plus proche dans hits_all.tsv (coordonnees a
 # +-2 pb), sa porte d'entree, son anomalie et son rang dans l'echantillon.
 set -euo pipefail
-W="${1:?usage: $0 DOSSIER_DE_TRAVAIL}"
-python3 - "$W/results/hits_all.tsv" <<'EOF'
+W="${1:?usage: $0 DOSSIER_DE_TRAVAIL [CAS.tsv]}"
+CAS="${2:-$(dirname "$0")/discordances.local.tsv}"
+[ -f "$CAS" ] || { echo "fichier de cas introuvable : $CAS (modele : scripts/discordances.exemple.tsv)" >&2; exit 1; }
+python3 - "$W/results/hits_all.tsv" "$CAS" <<'EOF'
 import csv, sys
 rows = list(csv.DictReader(open(sys.argv[1], encoding="utf-8"), delimiter="\t"))
-cases = [  # prefixe echantillon, gene, debut, fin (1-based, comme FRASER)
-    ("ECH01", "TBCK",    106171271, 106193608),
-    ("ECH02", "NIPBL",   37026328,  37027358),
-    ("ECH03", "TUBGCP2", 133282343, 133283077),
-    ("ECH04", "POLR2A",  7513244,   7513306),
-    ("ECH05", "SMC1A",   53403894,  53405011),
-    ("ECH06", "DYNC1H1", 102000145, 102000285),
-]
+cases = []  # prefixe echantillon, gene, debut, fin (1-based, comme FRASER)
+for line in open(sys.argv[2], encoding="utf-8"):
+    f = line.rstrip("\r\n").split("\t")
+    if not line.strip() or line.startswith("#") or len(f) < 4 or not f[2].strip().isdigit():
+        continue  # commentaire, ligne vide ou en-tete
+    cases.append((f[0].strip(), f[1].strip(), int(f[2]), int(f[3])))
 def num(x, d=1.0):
     try: return float(x)
     except ValueError: return d

@@ -13,5 +13,5 @@ Metriques calculees (equivalentes a FRASER / FRASER 2.0) :
 Auteur : genere pour un usage diagnostique de recherche.
 """
 
-__version__ = "2.7.1"
+__version__ = "2.7.2"
 __all__ = ["__version__"]

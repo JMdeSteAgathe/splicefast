@@ -9,14 +9,14 @@
   --bg:#f5f6f8; --panel:#ffffff; --ink:#1c2128; --muted:#5f6b7a; --faint:#8a95a3;
   --line:#e2e6eb; --line2:#eef1f4; --hover:#f0f5ff; --sel:#e3edff; --acc:#1f5fbf;
   --green:#1e8a4c; --greenbg:#e5f4ea; --amber:#a86a00; --amberbg:#fdf1dc; --red:#b42318; --redbg:#fde8e6;
-  --grey:#6b7280; --greybg:#eef0f3; --bar:#9fb3cf; --mark:#d1352b; --exp:#1f5fbf;
+  --grey:#6b7280; --greybg:#eef0f3; --bar:#9fb3cf; --mark:#d1352b; --exp:#1f5fbf; --pick:#eef4ff;
   --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark){
   :root{ --bg:#14171c; --panel:#1b1f26; --ink:#e3e7ec; --muted:#a2acb8; --faint:#7d8794;
     --line:#2c323b; --line2:#232830; --hover:#202836; --sel:#243552; --acc:#7fb0ff;
     --green:#5fd08d; --greenbg:#18301f; --amber:#f0b44c; --amberbg:#33270f; --red:#ff7d70; --redbg:#3a1a17;
-    --grey:#9aa3ae; --greybg:#262b33; --bar:#4d6283; --mark:#ff6b5e; --exp:#7fb0ff; }
+    --grey:#9aa3ae; --greybg:#262b33; --bar:#4d6283; --mark:#ff6b5e; --exp:#7fb0ff; --pick:#1d2a3f; }
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -75,6 +75,9 @@ table.car tr.noisy td{color:var(--faint)}
 .dd .opt small{color:var(--faint)}
 #status{padding:5px 12px;color:var(--muted);font-size:12px;flex:none;display:flex;gap:12px;align-items:center}
 #status .sp{flex:1}
+#status #stxt{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#status #ptxt{flex:none;white-space:nowrap}
+#status .keys{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tablewrap{flex:1;overflow:auto;position:relative;background:var(--panel);border-top:1px solid var(--line)}
 table{border-collapse:separate;border-spacing:0}
 #tbl{table-layout:fixed;width:0}
@@ -85,6 +88,13 @@ tbody td{height:24px;padding:0 6px;border-bottom:1px solid var(--line2);white-sp
 tbody tr{cursor:pointer}
 tbody tr:hover td{background:var(--hover)}
 tbody tr.cur td{background:var(--sel)}
+tbody tr.pk td{background:var(--pick)}
+tbody tr.pk.cur td{background:var(--sel)}
+tbody tr.pk td.pkc{box-shadow:inset 3px 0 0 var(--acc)}
+td.pkc,th.pkc{padding:0 0 0 7px!important;text-align:left;cursor:pointer}
+td.pkc input,th.pkc input{margin:0;cursor:pointer;vertical-align:middle}
+#tb{user-select:none}
+#fgenes b{font-weight:600}
 td.r{text-align:right;font-variant-numeric:tabular-nums}
 td.mono,.mono{font-family:var(--mono);font-size:12px}
 td.gene{font-weight:600}
@@ -164,9 +174,9 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-r
       <div class="f"><label for="fref">reference</label>
         <select id="fref"><option value="all">all</option><option value="yes">in reference</option><option value="no">test only</option></select></div>
       <div class="f"><label class="chk"><input type="checkbox" id="fgroup" checked>one row per anomaly</label></div>
-      <div class="f"><button class="btn small" id="freset">reset</button><button class="btn small" id="fexport" title="Download the rows shown as TSV">export</button></div>
+      <div class="f"><button class="btn small" id="freset">reset</button><button class="btn small" id="fexport" title="Download the ticked rows (or all rows shown if none is ticked) as TSV">export</button><button class="btn small" id="fgenes" title="Download the gene symbols of the ticked events (or of all rows shown if none is ticked) as a .txt file, one per line. Tick a box, then Shift+click another box to tick the whole range.">export gene list</button></div>
     </div>
-    <div id="status"><span id="stxt">Open a results folder to start.</span><span class="sp"></span><span><kbd>↑</kbd><kbd>↓</kbd> navigate · <kbd>Esc</kbd> close</span></div>
+    <div id="status"><span id="stxt">Open a results folder to start.</span><span class="sp"></span><span id="ptxt"></span><span class="keys"><kbd>↑</kbd><kbd>↓</kbd> navigate · <kbd>Space</kbd> tick · <kbd>Shift</kbd>+click range · <kbd>Esc</kbd> close</span></div>
     <div id="tablewrap">
       <div id="empty">
         <h2>Open the <code>results</code> folder of a SpliceFast run</h2>
@@ -183,9 +193,11 @@ kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-r
 "use strict";
 // ------------------------------------------------------------------ state
 const S = { files:{}, summary:[], runinfo:null, panels:[], loaded:new Map(), sel:new Set(),
-  rows:[], view:[], sort:{k:"anomaly_p",asc:true}, cur:-1, panelSel:new Set(), types:null, allTypes:[] };
+  rows:[], view:[], sort:{k:"anomaly_p",asc:true}, cur:-1, panelSel:new Set(), types:null, allTypes:[],
+  picked:new Set(), anchor:null };   // picked = lignes cochees (objets), anchor = ligne de depart d'une plage
 const ROWH = 25;
 const COLS = [
+  {k:"_pick", h:"", w:26, cls:"pkc"},
   {k:"sample", h:"Sample", w:150, cls:"mono"},
   {k:"gene", h:"Gene", w:90, cls:"gene"},
   {k:"phenotypes", h:"Phenotypes", w:420, fit:"please, count the nb of char in this sentence to fix the largeur"},
@@ -253,7 +265,7 @@ async function ingest(list){
   S.summary=parseTSV(await readFile(S.files["summary.tsv"]));
   S.runinfo = S.files["run_info.json"]? J(await readFile(S.files["run_info.json"])) : null;
   S.panels = S.files["panels.tsv"]? parseTSV(await readFile(S.files["panels.tsv"])) : [];
-  S.loaded.clear(); S.sel.clear(); S.rows=[]; S.cur=-1;
+  S.loaded.clear(); S.sel.clear(); S.rows=[]; S.cur=-1; S.picked.clear(); S.anchor=null;
   const ri=S.runinfo;
   $("runinfo").textContent = (ri? `v${ri.version} · ${ri.date} · ${ri.n_samples} samples (${ri.n_reference} in reference) · padj ≤ ${ri.padj}, |Δψ| ≥ ${ri.delta}` : "") +
      (ri&&ri.panelapp? ` · PanelApp: ${ri.panelapp}` : "");
@@ -369,9 +381,11 @@ function apply(){
     v=[...best.entries()].map(([k,r])=>{ r._n=cnt.get(k); return r; });
   } else v.forEach(r=>r._n=1);
   sortRows(v); S.view=v; S.cur=-1;
+  // les cases cochees survivent aux filtres tant que la ligne reste affichee
+  const vis=new Set(v); S.picked=new Set([...S.picked].filter(r=>vis.has(r))); if(S.anchor&&!vis.has(S.anchor)) S.anchor=null;
   const anoms=new Set(v.map(r=>r.sample+"|"+(r.anomaly_id||r.coordinates))).size;
   $("stxt").textContent = S.sel.size? `${anoms} anomal${anoms>1?"ies":"y"} · ${nRows} rows shown · ${S.rows.length} rows loaded from ${S.sel.size} sample${S.sel.size>1?"s":""}` : `${S.summary.length} samples in this run. Tick samples on the left.`;
-  render(true); closeDrawer();
+  render(true); closeDrawer(); pickUI();
 }
 function sortKey(r,k){
   switch(k){ case "_reads": return r._k; case "_psi": return num(r.psi); case "_panels": return r._best; case "anomaly_p": return r._p;
@@ -390,13 +404,19 @@ function textWidth(t){ try{ _cv=_cv||document.createElement("canvas"); const x=_
 function header(){
   for(const c of COLS) if(c.fit) c.w=Math.ceil(textWidth(c.fit))+14;   // width = this many characters (64)
   $("cg").innerHTML=COLS.map(c=>`<col style="width:${c.w}px">`).join("");
-  $("thr").innerHTML=COLS.map(c=>`<th class="${c.cls&&c.cls.includes("r")?"r":""}" data-k="${c.k}" title="Sort">${esc(c.h)}${S.sort.k===c.k?(S.sort.asc?" ▲":" ▼"):""}</th>`).join("");
+  $("thr").innerHTML=COLS.map(c=> c.k==="_pick"
+    ? `<th class="pkc" data-k="_pick" title="Tick / untick all rows shown"><input type="checkbox" id="pkall" tabindex="-1"></th>`
+    : `<th class="${c.cls&&c.cls.includes("r")?"r":""}" data-k="${c.k}" title="Sort">${esc(c.h)}${S.sort.k===c.k?(S.sort.asc?" ▲":" ▼"):""}</th>`).join("");
+  pickUI();
 }
 $("thr").addEventListener("click", e=>{ const th=e.target.closest("th"); if(!th) return; const k=th.dataset.k;
+  if(k==="_pick"){ const all=S.view.length&&S.view.every(r=>S.picked.has(r));
+    if(all) S.picked.clear(); else S.view.forEach(r=>S.picked.add(r)); S.anchor=null; e.target.blur&&e.target.blur(); refreshRows(); return; }
   if(S.sort.k===k) S.sort.asc=!S.sort.asc; else { S.sort.k=k; S.sort.asc = ["anomaly_p","padj_sample","_panels","sample","gene","coordinates","_type","metrics","moi","phenotypes","n_carriers"].includes(k); }
   sortRows(S.view); render(true); });
 function cell(r,c){
   switch(c.k){
+    case "_pick": return `<input type="checkbox" tabindex="-1"${S.picked.has(r)?" checked":""}>`;
     case "coordinates": return `${esc(r.coordinates)}<button class="copy" data-copy="${esc(r.coordinates)}" title="Copy locus">⧉</button>`;
     case "_type": return esc(r._type)+(r._n>1?`<span class="badge">+${r._n-1}</span>`:"")+(r.event_detail?` <span class="badge" title="${esc(r.event_detail)}">ⓘ</span>`:"");
     case "_reads": return `${esc(r.split_reads)}/${esc(r.total_reads)}`;
@@ -420,18 +440,49 @@ function render(reset){
   if(!reset && start===lastStart) return; lastStart=start;
   const pre=start*ROWH, post=(S.view.length-end)*ROWH;
   let html=`<tr style="height:${pre}px"><td colspan="${COLS.length}" style="padding:0;border:0;height:${pre}px"></td></tr>`;
-  for(let i=start;i<end;i++){ const r=S.view[i]; html+=`<tr data-i="${i}" class="${i===S.cur?"cur":""}">`+COLS.map(c=>`<td class="${c.cls||""}" title="${c.k==="phenotypes"||c.k==="_type"?esc(c.k==="_type"?r._type+(r.event_detail?" — "+r.event_detail:""):r.phenotypes):""}">${cell(r,c)}</td>`).join("")+"</tr>"; }
+  for(let i=start;i<end;i++){ const r=S.view[i]; html+=`<tr data-i="${i}" class="${i===S.cur?"cur":""}${S.picked.has(r)?" pk":""}">`+COLS.map(c=>`<td class="${c.cls||""}" title="${c.k==="phenotypes"||c.k==="_type"?esc(c.k==="_type"?r._type+(r.event_detail?" — "+r.event_detail:""):r.phenotypes):""}">${cell(r,c)}</td>`).join("")+"</tr>"; }
   html+=`<tr style="height:${post}px"><td colspan="${COLS.length}" style="padding:0;border:0;height:${post}px"></td></tr>`;
   if(!S.view.length) html=`<tr><td colspan="${COLS.length}" style="color:var(--muted);padding:14px">No event matches the filters (check "hide recurrent", panels, confidence).</td></tr>`;
   $("tb").innerHTML=html;
 }
 $("tablewrap").addEventListener("scroll", ()=>render(false));
 window.addEventListener("resize", ()=>render(false));
+// ------------------------------------------------------------------ ticked rows (gene list)
+// case = cocher une ligne ; Maj+clic = cocher (ou decocher) toute la plage depuis
+// la derniere case cliquee ; Ctrl/Cmd+clic sur la ligne = cocher sans ouvrir.
+function refreshRows(){ lastStart=-1; render(false); pickUI(); }
+function togglePick(i){ const r=S.view[i]; if(!r) return; if(S.picked.has(r)) S.picked.delete(r); else S.picked.add(r); S.anchor=r; refreshRows(); }
+function pickRange(i){
+  const a=S.anchor? S.view.indexOf(S.anchor) : -1;
+  if(a<0){ togglePick(i); return; }
+  const on=S.picked.has(S.anchor);           // la plage prend l'etat de la case de depart
+  for(let j=Math.min(a,i); j<=Math.max(a,i); j++){ if(on) S.picked.add(S.view[j]); else S.picked.delete(S.view[j]); }
+  S.anchor=S.view[i]; refreshRows();
+}
+function pickedRows(){ return S.picked.size? S.view.filter(r=>S.picked.has(r)) : S.view; }
+function genesOf(rows){ const seen=new Set(), out=[];
+  for(const r of rows) for(const g of String(r.gene||"").split(/[;,\s]+/)){ const x=g.trim(); if(x&&!seen.has(x)){ seen.add(x); out.push(x); } }
+  return out; }
+function pickUI(){
+  const n=S.picked.size, all=$("pkall");
+  if(all){ all.checked=n>0&&n===S.view.length; all.indeterminate=n>0&&n<S.view.length; }
+  const ng=n? genesOf(pickedRows()).length : 0;
+  $("ptxt").innerHTML = n? `<b>${n}</b> ticked · ${ng} gene${ng>1?"s":""} <button class="btn small" id="punpick">untick</button>` : "";
+  $("fgenes").innerHTML = n? `export gene list <b>(${ng})</b>` : "export gene list";
+}
+$("status").addEventListener("click", e=>{ if(e.target.id==="punpick"){ S.picked.clear(); S.anchor=null; refreshRows(); } });
+$("tb").addEventListener("mousedown", e=>{ if(e.shiftKey) e.preventDefault(); });
 $("tb").addEventListener("click", e=>{ const b=e.target.closest(".copy"); if(b){ e.stopPropagation(); copy(b.dataset.copy); return; }
-  const tr=e.target.closest("tr[data-i]"); if(!tr) return; select(+tr.dataset.i); });
-document.addEventListener("keydown", e=>{ if(e.target.matches("input,select,textarea")) return;
+  const tr=e.target.closest("tr[data-i]"); if(!tr) return; const i=+tr.dataset.i;
+  if(e.shiftKey){ pickRange(i); return; }
+  if(e.target.closest("td.pkc") || e.ctrlKey || e.metaKey){ togglePick(i); return; }
+  select(i); });
+document.addEventListener("keydown", e=>{ if(e.target.matches("input,select,textarea") && !e.target.closest("#tbl")) return;
   if(e.key==="Escape"){ closeDrawer(); return; }
-  if(e.key==="ArrowDown"||e.key==="ArrowUp"){ if(!S.view.length) return; e.preventDefault(); const i=Math.max(0,Math.min(S.view.length-1,(S.cur<0?-1:S.cur)+(e.key==="ArrowDown"?1:-1))); select(i,true); } });
+  if(e.key===" " && S.cur>=0){ e.preventDefault(); togglePick(S.cur); return; }
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){ if(!S.view.length) return; e.preventDefault(); const old=S.cur; const i=Math.max(0,Math.min(S.view.length-1,(S.cur<0?-1:S.cur)+(e.key==="ArrowDown"?1:-1)));
+    if(e.shiftKey){ if(!S.anchor||!S.picked.has(S.anchor)){ const r0=S.view[old>=0?old:i]; S.picked.add(r0); S.anchor=r0; } select(i,true); pickRange(i); return; }
+    select(i,true); } });
 function select(i,scroll){ S.cur=i; const wrap=$("tablewrap");
   if(scroll){ const y=i*ROWH; if(y<wrap.scrollTop+ROWH) wrap.scrollTop=y-ROWH; else if(y>wrap.scrollTop+wrap.clientHeight-2*ROWH) wrap.scrollTop=y-wrap.clientHeight+2*ROWH; }
   render(false); document.querySelectorAll("#tb tr.cur").forEach(t=>t.classList.remove("cur")); const tr=document.querySelector(`#tb tr[data-i="${i}"]`); if(tr) tr.classList.add("cur"); showDetail(S.view[i]); }
@@ -524,11 +575,20 @@ function carriersTable(r){
     <div class="sub">Carrier = same junction/site/intron, p ≤ 1e-4, same direction and at least half the Δψ of this sample. Noisy samples are listed but not counted.</div>`;
 }
 // ------------------------------------------------------------------ export
-$("fexport").onclick=()=>{ if(!S.view.length){ toast("Nothing to export"); return; }
-  const keys=Object.keys(S.view[0]).filter(k=>!k.startsWith("_")&&!["panel_details","cohort_hist","context"].includes(k));
+function download(txt,name,type){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([txt],{type})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+function exportName(rows,base,ext){ const ss=new Set(rows.map(r=>r.sample)); return base+(ss.size===1? "_"+String([...ss][0]).replace(/[^\w.-]+/g,"_") : "")+ext; }
+// TSV : les lignes cochees s'il y en a, sinon toutes les lignes affichees
+$("fexport").onclick=()=>{ const rows=pickedRows(); if(!rows.length){ toast("Nothing to export"); return; }
+  const keys=Object.keys(rows[0]).filter(k=>!k.startsWith("_")&&!["panel_details","cohort_hist","context"].includes(k));
   const q=v=>{ v=String(v??""); return /[\t\n"]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; };
-  const txt=[keys.join("\t")].concat(S.view.map(r=>keys.map(k=>q(r[k])).join("\t"))).join("\n");
-  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([txt],{type:"text/tab-separated-values"})); a.download="splicefast_selection.tsv"; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); };
+  const txt=[keys.join("\t")].concat(rows.map(r=>keys.map(k=>q(r[k])).join("\t"))).join("\n");
+  download(txt, "splicefast_selection.tsv", "text/tab-separated-values");
+  toast(`${rows.length} ${S.picked.size?"ticked":"shown"} row${rows.length>1?"s":""} exported`); };
+// liste de genes : symboles uniques, un par ligne, dans l'ordre du tableau
+$("fgenes").onclick=()=>{ const rows=pickedRows(); if(!rows.length){ toast("Nothing to export"); return; }
+  const g=genesOf(rows); if(!g.length){ toast("No gene symbol in these rows (intergenic)"); return; }
+  download(g.join("\n")+"\n", exportName(rows,"splicefast_genes",".txt"), "text/plain");
+  toast(`${g.length} gene${g.length>1?"s":""} exported from ${rows.length} ${S.picked.size?"ticked":"shown"} event${rows.length>1?"s":""}`); };
 </script>
 </body>
 </html>

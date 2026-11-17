@@ -80,3 +80,26 @@ Test de non-régression : `tests/test_recurrence.py`.
   coupé par « … », et le texte complet s'affiche au survol.
 - La colonne Phenotypes affiche environ 64 caractères. Sa largeur est mesurée dans
   la police de votre navigateur.
+
+## 2.7.2 — liste de gènes, colonnes PanelApp à gauche
+
+- **Visualiseur : sélection d'une plage d'événements.** Une case à cocher en début
+  de ligne ; **Maj + clic** sur une seconde case coche toute la plage (ou la
+  décoche si la case de départ était décochée). Également : Ctrl + clic sur la
+  ligne, `Espace`, `Maj + ↑/↓`, et la case d'en-tête pour tout (dé)cocher. Les
+  cases cochées restent cochées tant que la ligne reste affichée par les filtres.
+- **Bouton `export gene list`** : télécharge `splicefast_genes.txt` (ou
+  `splicefast_genes_<échantillon>.txt` si un seul échantillon), un symbole par
+  ligne, sans doublon, dans l'ordre du tableau. Sans case cochée : gènes de toutes
+  les lignes affichées. Le bouton `export` (TSV) suit la même règle.
+- **Ordre des colonnes des TSV et du classeur Excel** : `panels`, `panels_green`,
+  `panelapp_best_confidence` et `moi` passent **en tête**, avant `sample`.
+  `phenotypes` reste en dernière colonne. Concerne `hits_all.tsv`,
+  `anomalies.tsv`, les TSV par échantillon et les feuilles `anomalies` /
+  `events` de `results.xlsx`. Les scripts qui lisent les colonnes par leur nom
+  (visualiseur, `verifier_discordances.sh`) ne sont pas affectés.
+
+**À relancer : `report` seulement** (`refaire_rapport.bat` / `.sh`) pour obtenir
+le nouvel ordre des colonnes. Le visualiseur fonctionne aussi sur des résultats
+2.7.0/2.7.1 (il suffit de remplacer `SpliceFast_viewer.html`, ou de relancer
+`report` qui le recopie).

@@ -338,10 +338,11 @@ pose aucun problème.
 | `<sample>.bed` | à glisser dans IGV : chaque événement coloré par type |
 | `run_info.json` | version, seuils, date, source PanelApp |
 
-Colonnes principales des TSV :
+Colonnes principales des TSV, dans l'ordre (PanelApp en tête, phénotypes en dernier) :
 
 | Colonne | Signification |
 |---|---|
+| `panels`, `panels_green`, `panelapp_best_confidence`, `moi` | PanelApp : panels, panels verts, meilleure confiance, mode de transmission |
 | `coordinates` | `chr5:37026328-37027358` : 1re et dernière base de l'intron (1-based, comme FRASER) ; un site seul pour theta |
 | `anomaly_type`, `event_type`, `event_detail` | nature de l'anomalie (regroupée) et de chaque signal, ex. `exon extension: +157 bp into intron …` |
 | `metrics` | jaccard, psi5, psi3, theta, coverage, combined |
@@ -352,8 +353,8 @@ Colonnes principales des TSV :
 | `retention_p_combined`, `retention_detail` | p de Brown sur les 4 familles de preuves de rétention |
 | `n_carriers`, `other_carriers`, `recurrent` | échantillons porteurs du même événement |
 | `hypervariable_locus` | HLA / immunoglobulines / récepteurs T |
-| `panels`, `panels_green`, `panelapp_best_confidence`, `moi`, `phenotypes` | PanelApp |
 | `in_reference` | l'échantillon sert-il de norme ? |
+| `phenotypes` | phénotypes PanelApp (texte long, laissé à droite) |
 
 ### Le visualiseur `SpliceFast_viewer.html`
 
@@ -385,7 +386,14 @@ Chrome ou Firefox.
    - les autres porteurs ;
    - les panels, avec confiance, MOI et phénotypes ;
    - deux boutons « copier le locus » et « copier la vue IGV » (avec marges).
-6. **Export** télécharge les lignes affichées en TSV.
+6. **Sélection et liste de gènes.** La case en début de ligne coche un événement ;
+   **Maj + clic** sur une autre case coche toute la plage entre les deux (ou la décoche,
+   si la première case était décochée). On peut aussi utiliser Ctrl + clic sur la
+   ligne, `Espace` sur la ligne courante, `Maj + ↑/↓`, et la case de l'en-tête pour
+   tout cocher. **export gene list** télécharge `splicefast_genes.txt` : les symboles
+   des gènes cochés, un par ligne, sans doublon, dans l'ordre du tableau. Si rien
+   n'est coché, ce sont les gènes de toutes les lignes affichées.
+7. **Export** télécharge en TSV les lignes cochées, ou à défaut toutes les lignes affichées.
 
 ### Module dédié : rétention d'intron par la couverture
 
